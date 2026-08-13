@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# containerd bindir image verifier: cosign
+# API: invoked by containerd with:
+#   -name <image reference>  -digest <digest>  -stdin-media-type <type>
+#   The OCI Content Descriptor (JSON) is passed on stdin.
+# Exit 0 => allow pull; non-zero => block pull.
+# The reason (judgement) is printed to stdout.
+set -u
+
+NAME=""
+declare -A ARGS=()
+
+# Parse args: -key value pairs (also handle bare single-dash long flags).
+prev=""
+for a in "$@"; do
+  if [ -n "$prev" ]; then
+    ARGS["$prev"]="$a"
+    prev=""
+    continue
+  fi
+  case "$a" in
+    -name) prev=name ;;
+    -digest) prev=digest ;;
+    -stdin-media-type) prev=media ;;
+    *)
+      # flag with value form like -name=foo
+      case "$a" in
+        -name=*) ARGS[name]="${a#-name=}" ;;
+        -digest=*) ARGS[digest]="${a#-digest=}" ;;
+        -stdin-media-type=*) ARGS[media]="${a#-stdin-media-type=}" ;;
+      esac
+      ;;
+  esac
+done
+NAME="${ARGS[name]:-}"
+DIGEST="${ARGS[digest]:-}"
+
+# Read the descriptor payload on stdin (optional logging, not required for cosign)
+# cat >/dev/null
+
+PUBKEY="${COSIGN_PUBKEY:-/opt/cosign.pub}"
+REGISTRY_FLAGS="--allow-insecure-registry --allow-http-registry"
+
+if [ -z "$NAME" ]; then
+  echo "rejected: image verifier got empty -name"
+  exit 1
+fi
+
+# Normalize: containerd may pass a digest-only reference or a name; prefer the full name.
+# cosign verify needs a reference it can resolve against the registry.
+REF="$NAME"
+
+OUT="$(/usr/local/bin/cosign verify --key "$PUBKEY" $REGISTRY_FLAGS "$REF" 2>&1)"
+RC=$?
+
+if [ $RC -eq 0 ]; then
+  echo "OK: image $REF signed by trusted key (digest $DIGEST)"
+  exit 0
+else
+  # Print a reason for the judgement; containerd relays this to the CRI error.
+  echo "REJECTED: image $REF failed signature verification: $(echo "$OUT" | tail -1)"
+  exit 1
+fi

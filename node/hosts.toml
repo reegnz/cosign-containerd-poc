@@ -1,0 +1,14 @@
+# Insecure registry hosts configuration used by the kind node's containerd.
+# The local registry `registry:2` listens on plain HTTP at this IP on the kind
+# podman network, so containerd must be told to treat it as insecure.
+#
+# Copy to the node as:
+#   /etc/containerd/certs.d/10.89.0.100:5000/hosts.toml
+#
+# Adjust the IP/host if your registry lives elsewhere.
+
+server = "http://10.89.0.100:5000"
+
+[host."http://10.89.0.100:5000"]
+  capabilities = ["pull", "resolve", "push"]
+  skip_verify = true

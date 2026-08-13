@@ -1,0 +1,17 @@
+# Signed image — containerd's cosign verifier allows the pull, pod runs.
+# Adjust the image ref to your registry's IP (default 10.89.0.100:5000).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signed-ok
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: signed-ok }
+  template:
+    metadata:
+      labels: { app: signed-ok }
+    spec:
+      containers:
+      - name: app
+        image: 10.89.0.100:5000/poc/nginx:signed2

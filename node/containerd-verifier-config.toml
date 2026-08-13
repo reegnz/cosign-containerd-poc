@@ -1,0 +1,35 @@
+# containerd config additions for image verification via the bindir (cosign) plugin.
+#
+# Append these to the kind node's /etc/containerd/config.toml. Two things MUST
+# hold for verification to actually fire:
+#
+#  1. The CRI must use the *transfer service* pull path, NOT "local image pull
+#     mode". kind's default config sets `discard_unpacked_layers = true` under
+#     [plugins."io.containerd.grpc.v1.cri".containerd], and containerd responds:
+#       "Found 'DiscardUnpackedLayers' in CRI config which is incompatible with
+#        transfer service ... Falling back to local image pull mode."
+#     Local pull mode BYPASSES the image verifier entirely. So if you base a
+#     node image on kind's defaults, DELETE that discard_unpacked_layers line.
+#
+#  2. The CRI registry config_path must point at a certs.d dir containing an
+#     insecure hosts.toml for the plain-HTTP local registry, otherwise the
+#     transfer resolver tries HTTPS to the registry and resolution (and thus
+#     verification) never happens.
+
+# Enable the image verifier. Verifier executables live in bin_dir.
+[plugins."io.containerd.image-verifier.v1.bindir"]
+  bin_dir = "/opt/containerd/image-verifier/bin"
+  max_verifiers = 10
+  per_verifier_timeout = "15s"
+
+# The transfer service reads insecure-registry hosts from config_path (certs.d).
+[plugins."io.containerd.transfer.v1"]
+  config_path = "/etc/containerd/certs.d"
+
+# The CRI transfer pull path wires the same certs.d as the resolver host dir.
+[plugins."io.containerd.grpc.v1.cri".registry]
+  config_path = "/etc/containerd/certs.d"
+
+# Optional: raise log level to see "Verifying image pull" / "blocked pull" lines.
+[log]
+  level = "debug"

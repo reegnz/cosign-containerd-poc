@@ -1,0 +1,18 @@
+# Unsigned image — containerd's cosign verifier blocks the pull.
+# Pod lands in ImagePullBackOff; the k8s event carries the verification reason.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unsigned-bad
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: unsigned-bad }
+  template:
+    metadata:
+      labels: { app: unsigned-bad }
+    spec:
+      containers:
+      - name: app
+        image: 10.89.0.100:5000/poc/busybox:unsigned5
+        command: ["sleep","3600"]

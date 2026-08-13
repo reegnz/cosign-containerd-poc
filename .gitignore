@@ -1,0 +1,5 @@
+# Private keys / secrets — NEVER commit these
+keys/cosign.key
+*.key
+cosign
+node-config.toml*
